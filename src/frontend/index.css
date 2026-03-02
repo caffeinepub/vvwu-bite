@@ -1,0 +1,163 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+
+
+@layer base {
+  /* Dark mode (default) */
+  :root {
+    --radius: 0.75rem;
+    --background: 0.1 0 0;
+    --foreground: 0.95 0 0;
+    --card: 0.15 0 0;
+    --card-foreground: 0.95 0 0;
+    --popover: 0.17 0 0;
+    --popover-foreground: 0.95 0 0;
+    --primary: 0.52 0.22 27;
+    --primary-foreground: 0.98 0 0;
+    --secondary: 0.75 0.15 85;
+    --secondary-foreground: 0.1 0 0;
+    --muted: 0.2 0 0;
+    --muted-foreground: 0.6 0 0;
+    --accent: 0.68 0.18 85;
+    --accent-foreground: 0.1 0 0;
+    --destructive: 0.52 0.22 27;
+    --destructive-foreground: 0.98 0 0;
+    --border: 0.28 0.04 27;
+    --input: 0.22 0.03 27;
+    --ring: 0.68 0.18 85;
+    --chart-1: 0.52 0.22 27;
+    --chart-2: 0.75 0.15 85;
+    --chart-3: 0.65 0.18 85;
+    --chart-4: 0.4 0.12 27;
+    --chart-5: 0.85 0.1 85;
+    --sidebar: 0.13 0 0;
+    --sidebar-foreground: 0.95 0 0;
+    --sidebar-primary: 0.52 0.22 27;
+    --sidebar-primary-foreground: 0.98 0 0;
+    --sidebar-accent: 0.2 0 0;
+    --sidebar-accent-foreground: 0.95 0 0;
+    --sidebar-border: 0.28 0.04 27;
+    --sidebar-ring: 0.68 0.18 85;
+  }
+
+  /* Light mode */
+  .light {
+    --background: 0.98 0.01 85;
+    --foreground: 0.12 0 0;
+    --card: 0.97 0.015 85;
+    --card-foreground: 0.12 0 0;
+    --popover: 0.97 0.015 85;
+    --popover-foreground: 0.12 0 0;
+    --primary: 0.5 0.22 27;
+    --primary-foreground: 0.98 0 0;
+    --secondary: 0.7 0.15 85;
+    --secondary-foreground: 0.1 0 0;
+    --muted: 0.93 0.02 85;
+    --muted-foreground: 0.45 0 0;
+    --accent: 0.6 0.18 85;
+    --accent-foreground: 0.1 0 0;
+    --destructive: 0.5 0.22 27;
+    --destructive-foreground: 0.98 0 0;
+    --border: 0.88 0.03 85;
+    --input: 0.9 0.025 85;
+    --ring: 0.6 0.18 85;
+    --chart-1: 0.5 0.22 27;
+    --chart-2: 0.7 0.15 85;
+    --chart-3: 0.6 0.18 85;
+    --chart-4: 0.35 0.12 27;
+    --chart-5: 0.82 0.1 85;
+    --sidebar: 0.95 0.02 85;
+    --sidebar-foreground: 0.12 0 0;
+    --sidebar-primary: 0.5 0.22 27;
+    --sidebar-primary-foreground: 0.98 0 0;
+    --sidebar-accent: 0.93 0.02 85;
+    --sidebar-accent-foreground: 0.12 0 0;
+    --sidebar-border: 0.88 0.03 85;
+    --sidebar-ring: 0.6 0.18 85;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  html.light {
+    color-scheme: light;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: "General Sans", "Outfit", ui-sans-serif, system-ui, sans-serif;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: "Playfair Display", Georgia, ui-serif, serif;
+  }
+
+  .font-heading {
+    font-family: "Bricolage Grotesque", "Outfit", ui-sans-serif, system-ui, sans-serif;
+  }
+
+  .gradient-text {
+    @apply bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent;
+  }
+
+  .gold-gradient-text {
+    @apply bg-gradient-to-r from-accent to-secondary bg-clip-text text-transparent;
+  }
+
+  .card-hover {
+    @apply transition-all duration-300 hover:scale-[1.02] hover:shadow-xl;
+  }
+
+  .glow-red {
+    box-shadow: 0 0 30px oklch(0.52 0.22 27 / 0.3);
+  }
+
+  .glow-gold {
+    box-shadow: 0 0 30px oklch(0.68 0.18 85 / 0.35);
+  }
+
+  .hero-overlay {
+    background: linear-gradient(
+      135deg,
+      oklch(0.1 0 0 / 0.9) 0%,
+      oklch(0.52 0.22 27 / 0.3) 50%,
+      oklch(0.1 0 0 / 0.85) 100%
+    );
+  }
+
+  .bg-noise {
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: oklch(var(--background));
+}
+::-webkit-scrollbar-thumb {
+  background: oklch(var(--border));
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(var(--primary));
+}
+
+/* Smooth transitions */
+* {
+  transition: background-color 0.3s ease, border-color 0.3s ease, color 0.2s ease;
+}
+button, a, input, select, textarea {
+  transition: all 0.2s ease;
+}
