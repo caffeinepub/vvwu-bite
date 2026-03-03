@@ -1,10 +1,11 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "@tanstack/react-router";
-import { ShoppingCart } from "lucide-react";
+import { Search, ShoppingCart, X } from "lucide-react";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { MenuItem } from "../backend.d.ts";
 import { FoodCard } from "../components/FoodCard";
 import { FoodCardSkeleton } from "../components/FoodCardSkeleton";
@@ -35,10 +36,35 @@ function MenuItemWithRating({
   );
 }
 
-function DayMenu({ day }: { day: string }) {
+function DayMenu({
+  day,
+  searchQuery,
+}: {
+  day: string;
+  searchQuery: string;
+}) {
   const today = getCurrentDay();
   const isOrderable = day === today;
-  const { data: items, isLoading } = useMenuByDay(day);
+  const { data: items, isLoading, refetch } = useMenuByDay(day);
+  const retryRef = useRef(0);
+
+  // Auto-retry for today's menu if empty (seeder might still be running)
+  useEffect(() => {
+    if (day !== today) return;
+    if (!isLoading && (!items || items.length === 0) && retryRef.current < 8) {
+      retryRef.current += 1;
+      const delay = Math.min(1500 * retryRef.current, 6000);
+      const t = setTimeout(() => void refetch(), delay);
+      return () => clearTimeout(t);
+    }
+  }, [items, isLoading, day, today, refetch]);
+
+  const filteredItems =
+    searchQuery.trim() === ""
+      ? items
+      : items?.filter((item) =>
+          item.name.toLowerCase().includes(searchQuery.toLowerCase()),
+        );
 
   return (
     <div>
@@ -59,7 +85,7 @@ function DayMenu({ day }: { day: string }) {
             <FoodCardSkeleton key={id} />
           ))}
         </div>
-      ) : items && items.length > 0 ? (
+      ) : filteredItems && filteredItems.length > 0 ? (
         <motion.div
           className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
           variants={{
@@ -69,7 +95,7 @@ function DayMenu({ day }: { day: string }) {
           initial="hidden"
           animate="show"
         >
-          {items.map((item) => (
+          {filteredItems.map((item) => (
             <motion.div
               key={item.id}
               variants={{
@@ -81,6 +107,16 @@ function DayMenu({ day }: { day: string }) {
             </motion.div>
           ))}
         </motion.div>
+      ) : searchQuery.trim() !== "" ? (
+        <div className="text-center py-20">
+          <p className="text-5xl mb-4">🔍</p>
+          <p className="text-muted-foreground font-heading text-lg">
+            No results for &ldquo;{searchQuery}&rdquo;
+          </p>
+          <p className="text-muted-foreground text-sm mt-2">
+            Try a different search term
+          </p>
+        </div>
       ) : (
         <div className="text-center py-20">
           <p className="text-5xl mb-4">📋</p>
@@ -96,7 +132,14 @@ function DayMenu({ day }: { day: string }) {
 export function MenuPage() {
   const today = getCurrentDay();
   const [selectedDay, setSelectedDay] = useState<string>(today);
+  const [searchQuery, setSearchQuery] = useState("");
   const { itemCount } = useCart();
+
+  // Reset search when switching days
+  const handleDayChange = (day: string) => {
+    setSelectedDay(day);
+    setSearchQuery("");
+  };
 
   return (
     <div className="min-h-screen">
@@ -118,6 +161,31 @@ export function MenuPage() {
               available for ordering.
             </p>
           </motion.div>
+
+          {/* Search Box */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="mt-5 relative max-w-sm"
+          >
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder="Search food items…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 pr-9 bg-muted border-border font-heading text-sm h-10"
+            />
+            {searchQuery && (
+              <button
+                type="button"
+                onClick={() => setSearchQuery("")}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </motion.div>
         </div>
       </div>
 
@@ -125,7 +193,7 @@ export function MenuPage() {
       <div className="max-w-7xl mx-auto px-4 py-8">
         <Tabs
           value={selectedDay}
-          onValueChange={setSelectedDay}
+          onValueChange={handleDayChange}
           className="w-full"
         >
           <div className="overflow-x-auto pb-2 mb-8">
@@ -155,7 +223,7 @@ export function MenuPage() {
 
           {DAYS.map((day) => (
             <TabsContent key={day} value={day} className="mt-0">
-              <DayMenu day={day} />
+              <DayMenu day={day} searchQuery={searchQuery} />
             </TabsContent>
           ))}
         </Tabs>

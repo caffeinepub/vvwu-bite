@@ -3,11 +3,9 @@ import { Link, useRouter } from "@tanstack/react-router";
 import { LayoutDashboard, LogOut, Menu, Moon, Sun, X } from "lucide-react";
 import { useState } from "react";
 import { useTheme } from "../context/ThemeContext";
-import { useInternetIdentity } from "../hooks/useInternetIdentity";
 
 export function AdminNavbar() {
   const { isDark, toggleTheme } = useTheme();
-  const { clear } = useInternetIdentity();
   const [mobileOpen, setMobileOpen] = useState(false);
   const router = useRouter();
   const currentPath = router.state.location.pathname;
@@ -21,7 +19,7 @@ export function AdminNavbar() {
   ];
 
   const handleLogout = () => {
-    clear();
+    localStorage.removeItem("adminLoggedIn");
     void router.navigate({ to: "/admin" });
   };
 

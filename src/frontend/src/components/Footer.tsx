@@ -17,8 +17,8 @@ export function Footer() {
               </span>
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed">
-              Smart Canteen Pre-Ordering & Queue Management System for VV Wadala
-              University.
+              Smart Canteen Pre-Ordering & Queue Management System for Vanita
+              Vishram Women's University.
             </p>
           </div>
 
@@ -53,7 +53,7 @@ export function Footer() {
             <div className="space-y-2 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <MapPin className="h-4 w-4 text-primary flex-shrink-0" />
-                <span>VV Wadala University, Mumbai</span>
+                <span>Vanita Vishram Women's University, Surat</span>
               </div>
               <div className="flex items-center gap-2">
                 <Phone className="h-4 w-4 text-primary flex-shrink-0" />

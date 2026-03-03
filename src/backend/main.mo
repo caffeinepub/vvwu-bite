@@ -1,13 +1,12 @@
 import Map "mo:core/Map";
 import Text "mo:core/Text";
 import Array "mo:core/Array";
-import Runtime "mo:core/Runtime";
-import Iter "mo:core/Iter";
-import Time "mo:core/Time";
-import Order "mo:core/Order";
 import Float "mo:core/Float";
 import Nat "mo:core/Nat";
+import Time "mo:core/Time";
+import Runtime "mo:core/Runtime";
 import Principal "mo:core/Principal";
+import Order "mo:core/Order";
 
 import AccessControl "authorization/access-control";
 import MixinAuthorization "authorization/MixinAuthorization";
@@ -20,7 +19,7 @@ actor {
   // User Profile Type
   public type UserProfile = {
     name : Text;
-    email : Text;
+    role : Text;
   };
 
   let userProfiles = Map.empty<Principal, UserProfile>();
@@ -35,7 +34,7 @@ actor {
 
   public query ({ caller }) func getUserProfile(user : Principal) : async ?UserProfile {
     if (caller.notEqual(user) and not AccessControl.isAdmin(accessControlState, caller)) {
-      Runtime.trap("Unauthorized: Can only view your own profile");
+      Runtime.trap("Unauthorized: You can only view your own profile");
     };
     userProfiles.get(user);
   };
@@ -123,40 +122,8 @@ actor {
   let ratings = Map.empty<Text, [Rating]>();
   var orderCounter : Nat = 0;
 
-  // Day management
-  var dayCounter = 0;
-
-  func getCurrentDayOfWeek() : Text {
-    arrayToDayText(dayCounter % 7);
-  };
-
-  func arrayToDayText(dayIndex : Nat) : Text {
-    switch (dayIndex) {
-      case (0) { "Monday" };
-      case (1) { "Tuesday" };
-      case (2) { "Wednesday" };
-      case (3) { "Thursday" };
-      case (4) { "Friday" };
-      case (5) { "Saturday" };
-      case (6) { "Sunday" };
-      case (_) { "Unknown" };
-    };
-  };
-
-  // Admin: Cycle to next day
-  public shared ({ caller }) func nextDay() : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can change the day");
-    };
-    dayCounter += 1;
-  };
-
-  // Menu Management - Admin Only
+  // Menu Management - No Auth Check
   public shared ({ caller }) func addMenuItem(item : MenuItem) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can add menu items");
-    };
-
     let existing = menuItems.get(item.id);
     switch (existing) {
       case (null) {
@@ -169,10 +136,6 @@ actor {
   };
 
   public shared ({ caller }) func updateMenuItem(id : Text, updatedItem : MenuItem) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can update menu items");
-    };
-
     let existing = menuItems.get(id);
     switch (existing) {
       case (null) {
@@ -185,9 +148,6 @@ actor {
   };
 
   public shared ({ caller }) func removeMenuItem(id : Text) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can remove menu items");
-    };
     let existed = menuItems.containsKey(id);
     menuItems.remove(id);
     if (not existed) {
@@ -195,7 +155,14 @@ actor {
     };
   };
 
-  // Menu Queries - Public (including guests)
+  // Bulk Menu Management for Frontend Seeding - No Auth Check
+  public shared ({ caller }) func seedMenuItems(items : [MenuItem]) : async () {
+    for (item in items.values()) {
+      menuItems.add(item.id, item);
+    };
+  };
+
+  // Menu Queries - Public
   public query ({ caller }) func getMenuByDay(dayOfWeek : Text) : async [MenuItem] {
     menuItems.values().toArray().filter(func(item) { Text.equal(item.dayOfWeek, dayOfWeek) });
   };
@@ -208,17 +175,17 @@ actor {
     menuItems.get(id);
   };
 
-  // Order Management - Users only
+  public query func getMenuItemCount() : async Nat {
+    menuItems.size();
+  };
+
+  // Order Management - No Auth Check (Anonymous Allowed)
   public shared ({ caller }) func placeOrder(
     items : [OrderItem],
     orderType : OrderType,
     paymentMethod : PaymentMethod,
     customerName : Text,
   ) : async Text {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can place orders");
-    };
-
     // Calculate total and validate items
     var totalAmount : Float = 0;
     for (orderItem in items.vals()) {
@@ -237,7 +204,7 @@ actor {
             id = menuItem.id;
             name = menuItem.name;
             price = menuItem.price;
-            quantity = menuItem.quantity - orderItem.quantity;
+            quantity = menuItem.quantity - orderItem.quantity : Nat;
             imageUrl = menuItem.imageUrl;
             dayOfWeek = menuItem.dayOfWeek;
             description = menuItem.description;
@@ -271,16 +238,12 @@ actor {
     orderId;
   };
 
-  // Order Queries - Users can see their own, admins can see all
+  // Order Queries - Public
   public query ({ caller }) func getOrder(orderId : Text) : async ?Order {
-    // Any authenticated user can query orders (business logic may vary)
     orders.get(orderId);
   };
 
   public query ({ caller }) func getAllOrders() : async [Order] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can view all orders");
-    };
     orders.values().toArray();
   };
 
@@ -294,12 +257,8 @@ actor {
     });
   };
 
-  // Order Status Management - Admin Only
+  // Order Status Management - No Auth Check
   public shared ({ caller }) func updateOrderStatus(orderId : Text, status : OrderStatus) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can update order status");
-    };
-
     switch (orders.get(orderId)) {
       case (null) {
         Runtime.trap("Order not found");
@@ -323,10 +282,6 @@ actor {
   };
 
   public shared ({ caller }) func updateEstimatedTime(orderId : Text, estimatedTime : Nat) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can update estimated time");
-    };
-
     switch (orders.get(orderId)) {
       case (null) {
         Runtime.trap("Order not found");
@@ -350,10 +305,6 @@ actor {
   };
 
   public shared ({ caller }) func markOrderAsDelivered(orderId : Text) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can mark orders as delivered");
-    };
-
     switch (orders.get(orderId)) {
       case (null) {
         Runtime.trap("Order not found");
@@ -377,10 +328,6 @@ actor {
   };
 
   public shared ({ caller }) func markPaymentAsPaid(orderId : Text) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can mark payment as paid");
-    };
-
     switch (orders.get(orderId)) {
       case (null) {
         Runtime.trap("Order not found");
@@ -403,36 +350,17 @@ actor {
     };
   };
 
-  // Sales History - Admin Only
   public query ({ caller }) func getOrdersByDate(date : Time.Time) : async [Order] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can view sales history");
-    };
-
-    // Filter delivered orders for the specific date (simplified: same day)
+    // Filter all orders for the specific date (simplified: same day)
     orders.values().toArray().filter(func(order) {
-      switch (order.status) {
-        case (#delivered) {
-          // Simplified date comparison (in production, use proper date handling)
-          order.timestamp >= date and order.timestamp < date + 86_400_000_000_000;
-        };
-        case (_) { false };
-      };
+      order.timestamp >= date and order.timestamp < date + 86_400_000_000_000;
     });
   };
 
   public query ({ caller }) func getSalesSummary(date : Time.Time) : async { totalOrders : Nat; totalRevenue : Float } {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can view sales summary");
-    };
-
     let dayOrders = orders.values().toArray().filter(func(order) {
-      switch (order.status) {
-        case (#delivered) {
-          order.timestamp >= date and order.timestamp < date + 86_400_000_000_000;
-        };
-        case (_) { false };
-      };
+      // Simplified date comparison (in production, use proper date handling)
+      order.timestamp >= date and order.timestamp < date + 86_400_000_000_000;
     });
 
     var totalRevenue : Float = 0;
@@ -444,32 +372,17 @@ actor {
   };
 
   public query ({ caller }) func getOrdersByDateRange(startDate : Time.Time, endDate : Time.Time) : async [Order] {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #admin))) {
-      Runtime.trap("Unauthorized: Only admins can view sales history");
-    };
-
     orders.values().toArray().filter(func(order) {
-      switch (order.status) {
-        case (#delivered) {
-          order.timestamp >= startDate and order.timestamp <= endDate;
-        };
-        case (_) { false };
-      };
+      order.timestamp >= startDate and order.timestamp <= endDate;
     });
   };
 
-  // Rating Management - Users only (authenticated users can rate)
+  // Rating Management - No Auth Check (Anonymous Allowed)
   public shared ({ caller }) func addRating(rating : Rating) : async () {
-    if (not (AccessControl.hasPermission(accessControlState, caller, #user))) {
-      Runtime.trap("Unauthorized: Only users can add ratings");
-    };
-
-    // Validate rating value
     if (rating.rating < 1 or rating.rating > 5) {
       Runtime.trap("Rating must be between 1 and 5");
     };
 
-    // Validate item exists
     switch (menuItems.get(rating.itemId)) {
       case (null) {
         Runtime.trap("Item not found");

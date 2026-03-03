@@ -11,13 +11,13 @@ import {
   ArrowRight,
   ChevronRight,
   Clock,
-  Star,
+  MapPin,
   Users,
   Utensils,
   Zap,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FoodCard } from "../components/FoodCard";
 import { FoodCardSkeleton } from "../components/FoodCardSkeleton";
 import { useAverageRating, useMenuByDay } from "../hooks/useQueries";
@@ -35,7 +35,24 @@ function TodayItemWithRating({
 export function UserHome() {
   const navigate = useNavigate();
   const today = getCurrentDay();
-  const { data: todayMenu, isLoading } = useMenuByDay(today);
+  const { data: todayMenu, isLoading, refetch } = useMenuByDay(today);
+
+  // Auto-retry fetching menu until items appear (seeder may still be running)
+  const retryCount = useRef(0);
+  useEffect(() => {
+    if (
+      !isLoading &&
+      (!todayMenu || todayMenu.length === 0) &&
+      retryCount.current < 8
+    ) {
+      retryCount.current += 1;
+      const delay = Math.min(1500 * retryCount.current, 6000);
+      const timer = setTimeout(() => {
+        void refetch();
+      }, delay);
+      return () => clearTimeout(timer);
+    }
+  }, [todayMenu, isLoading, refetch]);
   const [trackModalOpen, setTrackModalOpen] = useState(false);
   const [orderId, setOrderId] = useState("");
 
@@ -72,83 +89,115 @@ export function UserHome() {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative min-h-[70vh] flex items-center justify-center overflow-hidden">
+      <section className="relative min-h-[85vh] flex items-center justify-center overflow-hidden">
         {/* Background Image */}
         <div
-          className="absolute inset-0 bg-cover bg-center"
+          className="absolute inset-0 bg-cover bg-center scale-105"
           style={{
             backgroundImage:
-              "url('/assets/generated/canteen-hero.dim_1200x500.jpg')",
+              "url('/assets/generated/canteen-hero-bg.dim_1440x700.jpg')",
           }}
         />
-        {/* Dark overlay */}
-        <div className="absolute inset-0 hero-overlay" />
+        {/* Dark overlay - 65% opacity for contrast */}
+        <div className="absolute inset-0 bg-black/65" />
 
-        {/* Decorative elements */}
+        {/* Decorative ambient glow */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-10 right-10 w-72 h-72 rounded-full bg-primary/10 blur-3xl" />
-          <div className="absolute bottom-10 left-10 w-96 h-96 rounded-full bg-accent/10 blur-3xl" />
+          <div className="absolute top-16 right-16 w-80 h-80 rounded-full bg-primary/15 blur-3xl" />
+          <div className="absolute bottom-20 left-10 w-96 h-96 rounded-full bg-accent/10 blur-3xl" />
         </div>
 
         {/* Content */}
         <div className="relative z-10 text-center px-4 max-w-4xl mx-auto">
+          {/* Smart canteen badge */}
+          <motion.div
+            initial={{ opacity: 0, scale: 0.85, y: -10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            transition={{ duration: 0.6, delay: 0.1 }}
+            className="flex justify-center mb-6"
+          >
+            <span className="inline-flex items-center gap-2 px-5 py-2 rounded-full bg-primary text-white text-xs font-heading font-bold tracking-widest uppercase shadow-lg shadow-primary/30">
+              ✦ SMART CANTEEN SYSTEM ✦
+            </span>
+          </motion.div>
+
+          {/* Main heading */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
           >
-            <div className="flex items-center justify-center gap-3 mb-4">
-              <span className="text-5xl md:text-6xl">🍴🍽️🥄</span>
-            </div>
-
-            <h1 className="font-display font-black text-4xl md:text-6xl lg:text-7xl text-white mb-4 leading-tight">
-              <span className="gradient-text">VVWU-Bite</span>
+            <h1 className="font-display font-black leading-none mb-2">
+              <div className="flex items-center justify-center gap-3 mb-2">
+                <span className="text-3xl md:text-4xl drop-shadow-lg">
+                  🍴🍽️🥄
+                </span>
+              </div>
+              <div className="flex items-center justify-center gap-3 flex-wrap">
+                <span className="text-6xl md:text-8xl lg:text-9xl text-white tracking-tight drop-shadow-2xl">
+                  VVWU
+                </span>
+                <span className="text-6xl md:text-8xl lg:text-9xl text-accent tracking-tight drop-shadow-2xl">
+                  BITE
+                </span>
+              </div>
             </h1>
 
-            <p className="font-heading text-lg md:text-xl text-white/80 mb-3 tracking-wide">
-              Smart Canteen Pre-Ordering &amp; Queue Management
+            <p className="font-heading text-base md:text-lg text-white/80 mb-10 max-w-2xl mx-auto leading-relaxed mt-4">
+              Experience the future of canteen dining. Pre-order your favorite
+              meals, skip the queue, and enjoy wait-free service.
             </p>
 
-            <div className="flex items-center justify-center gap-2 mb-8">
-              <div className="h-px w-16 bg-gradient-to-r from-transparent to-accent/50" />
-              <span className="text-accent text-sm font-heading tracking-widest uppercase">
-                VV Wadala University
-              </span>
-              <div className="h-px w-16 bg-gradient-to-l from-transparent to-accent/50" />
-            </div>
-
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 flex-wrap">
               <Button
                 size="lg"
                 onClick={() => void navigate({ to: "/menu" })}
-                className="bg-primary hover:bg-primary/90 text-primary-foreground font-heading font-bold px-8 h-12 rounded-xl glow-red gap-2 text-base w-full sm:w-auto"
+                className="bg-accent hover:bg-accent/90 text-[oklch(0.1_0_0)] font-heading font-black px-8 h-12 rounded-lg gap-2 text-sm tracking-widest uppercase w-full sm:w-auto glow-gold shadow-lg shadow-accent/20"
               >
-                Order Now
-                <ArrowRight className="h-5 w-5" />
+                ORDER NOW
+                <ArrowRight className="h-4 w-4" />
               </Button>
 
               <Button
                 size="lg"
                 variant="outline"
-                onClick={() => setTrackModalOpen(true)}
-                className="border-accent/50 text-accent hover:bg-accent/10 font-heading font-bold px-8 h-12 rounded-xl gap-2 text-base w-full sm:w-auto"
+                onClick={() => void navigate({ to: "/menu" })}
+                className="border-white/40 text-white bg-white/5 hover:bg-white/15 hover:border-white/60 font-heading font-bold px-8 h-12 rounded-lg gap-2 text-sm tracking-widest uppercase w-full sm:w-auto backdrop-blur-sm"
               >
-                Track My Order
-                <ChevronRight className="h-5 w-5" />
+                VIEW MENU
+                <ChevronRight className="h-4 w-4" />
               </Button>
+
+              {/* Track Order Button - animated with pulse */}
+              <motion.div
+                className="w-full sm:w-auto"
+                whileHover={{ scale: 1.04 }}
+                whileTap={{ scale: 0.97 }}
+              >
+                <Button
+                  size="lg"
+                  onClick={() => setTrackModalOpen(true)}
+                  className="relative bg-primary hover:bg-primary/90 text-white font-heading font-black px-8 h-12 rounded-lg gap-2 text-sm tracking-widest uppercase w-full sm:w-auto shadow-lg shadow-primary/30 overflow-hidden"
+                >
+                  {/* Pulse ring animation */}
+                  <span className="absolute inset-0 rounded-lg animate-ping bg-primary/30 pointer-events-none" />
+                  <MapPin className="h-4 w-4 relative z-10" />
+                  <span className="relative z-10">TRACK ORDER</span>
+                </Button>
+              </motion.div>
             </div>
           </motion.div>
         </div>
 
-        {/* Bottom wave */}
+        {/* Bottom smooth wave */}
         <div className="absolute bottom-0 left-0 right-0">
           <svg
-            viewBox="0 0 1440 60"
-            className="fill-background w-full"
+            viewBox="0 0 1440 70"
+            className="fill-background w-full block"
+            preserveAspectRatio="none"
             aria-hidden="true"
           >
-            <title>Wave divider</title>
-            <path d="M0,60L1440,0L1440,60L0,60Z" />
+            <path d="M0,40 C360,70 1080,10 1440,40 L1440,70 L0,70 Z" />
           </svg>
         </div>
       </section>

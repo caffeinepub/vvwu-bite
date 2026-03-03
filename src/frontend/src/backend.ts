@@ -124,7 +124,7 @@ export interface Order {
 }
 export interface UserProfile {
     name: string;
-    email: string;
+    role: string;
 }
 export enum OrderStatus {
     preparing = "preparing",
@@ -161,6 +161,7 @@ export interface backendInterface {
     getCallerUserRole(): Promise<UserRole>;
     getMenuByDay(dayOfWeek: string): Promise<Array<MenuItem>>;
     getMenuItem(id: string): Promise<MenuItem | null>;
+    getMenuItemCount(): Promise<bigint>;
     getOrder(orderId: string): Promise<Order | null>;
     getOrdersByDate(date: Time): Promise<Array<Order>>;
     getOrdersByDateRange(startDate: Time, endDate: Time): Promise<Array<Order>>;
@@ -174,10 +175,10 @@ export interface backendInterface {
     isCallerAdmin(): Promise<boolean>;
     markOrderAsDelivered(orderId: string): Promise<void>;
     markPaymentAsPaid(orderId: string): Promise<void>;
-    nextDay(): Promise<void>;
     placeOrder(items: Array<OrderItem>, orderType: OrderType, paymentMethod: PaymentMethod, customerName: string): Promise<string>;
     removeMenuItem(id: string): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
+    seedMenuItems(items: Array<MenuItem>): Promise<void>;
     updateEstimatedTime(orderId: string, estimatedTime: bigint): Promise<void>;
     updateMenuItem(id: string, updatedItem: MenuItem): Promise<void>;
     updateOrderStatus(orderId: string, status: OrderStatus): Promise<void>;
@@ -339,6 +340,20 @@ export class Backend implements backendInterface {
             return from_candid_opt_n17(this._uploadFile, this._downloadFile, result);
         }
     }
+    async getMenuItemCount(): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getMenuItemCount();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getMenuItemCount();
+            return result;
+        }
+    }
     async getOrder(arg0: string): Promise<Order | null> {
         if (this.processError) {
             try {
@@ -482,20 +497,6 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async nextDay(): Promise<void> {
-        if (this.processError) {
-            try {
-                const result = await this.actor.nextDay();
-                return result;
-            } catch (e) {
-                this.processError(e);
-                throw new Error("unreachable");
-            }
-        } else {
-            const result = await this.actor.nextDay();
-            return result;
-        }
-    }
     async placeOrder(arg0: Array<OrderItem>, arg1: OrderType, arg2: PaymentMethod, arg3: string): Promise<string> {
         if (this.processError) {
             try {
@@ -535,6 +536,20 @@ export class Backend implements backendInterface {
             }
         } else {
             const result = await this.actor.saveCallerUserProfile(arg0);
+            return result;
+        }
+    }
+    async seedMenuItems(arg0: Array<MenuItem>): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.seedMenuItems(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.seedMenuItems(arg0);
             return result;
         }
     }

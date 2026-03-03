@@ -42,7 +42,7 @@ export interface Order {
 }
 export interface UserProfile {
     name: string;
-    email: string;
+    role: string;
 }
 export enum OrderStatus {
     preparing = "preparing",
@@ -78,6 +78,7 @@ export interface backendInterface {
     getCallerUserRole(): Promise<UserRole>;
     getMenuByDay(dayOfWeek: string): Promise<Array<MenuItem>>;
     getMenuItem(id: string): Promise<MenuItem | null>;
+    getMenuItemCount(): Promise<bigint>;
     getOrder(orderId: string): Promise<Order | null>;
     getOrdersByDate(date: Time): Promise<Array<Order>>;
     getOrdersByDateRange(startDate: Time, endDate: Time): Promise<Array<Order>>;
@@ -91,10 +92,10 @@ export interface backendInterface {
     isCallerAdmin(): Promise<boolean>;
     markOrderAsDelivered(orderId: string): Promise<void>;
     markPaymentAsPaid(orderId: string): Promise<void>;
-    nextDay(): Promise<void>;
     placeOrder(items: Array<OrderItem>, orderType: OrderType, paymentMethod: PaymentMethod, customerName: string): Promise<string>;
     removeMenuItem(id: string): Promise<void>;
     saveCallerUserProfile(profile: UserProfile): Promise<void>;
+    seedMenuItems(items: Array<MenuItem>): Promise<void>;
     updateEstimatedTime(orderId: string, estimatedTime: bigint): Promise<void>;
     updateMenuItem(id: string, updatedItem: MenuItem): Promise<void>;
     updateOrderStatus(orderId: string, status: OrderStatus): Promise<void>;

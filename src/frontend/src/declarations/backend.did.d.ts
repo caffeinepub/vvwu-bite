@@ -50,7 +50,7 @@ export interface Rating {
   'rating' : bigint,
 }
 export type Time = bigint;
-export interface UserProfile { 'name' : string, 'email' : string }
+export interface UserProfile { 'name' : string, 'role' : string }
 export type UserRole = { 'admin' : null } |
   { 'user' : null } |
   { 'guest' : null };
@@ -66,6 +66,7 @@ export interface _SERVICE {
   'getCallerUserRole' : ActorMethod<[], UserRole>,
   'getMenuByDay' : ActorMethod<[string], Array<MenuItem>>,
   'getMenuItem' : ActorMethod<[string], [] | [MenuItem]>,
+  'getMenuItemCount' : ActorMethod<[], bigint>,
   'getOrder' : ActorMethod<[string], [] | [Order]>,
   'getOrdersByDate' : ActorMethod<[Time], Array<Order>>,
   'getOrdersByDateRange' : ActorMethod<[Time, Time], Array<Order>>,
@@ -79,13 +80,13 @@ export interface _SERVICE {
   'isCallerAdmin' : ActorMethod<[], boolean>,
   'markOrderAsDelivered' : ActorMethod<[string], undefined>,
   'markPaymentAsPaid' : ActorMethod<[string], undefined>,
-  'nextDay' : ActorMethod<[], undefined>,
   'placeOrder' : ActorMethod<
     [Array<OrderItem>, OrderType, PaymentMethod, string],
     string
   >,
   'removeMenuItem' : ActorMethod<[string], undefined>,
   'saveCallerUserProfile' : ActorMethod<[UserProfile], undefined>,
+  'seedMenuItems' : ActorMethod<[Array<MenuItem>], undefined>,
   'updateEstimatedTime' : ActorMethod<[string, bigint], undefined>,
   'updateMenuItem' : ActorMethod<[string, MenuItem], undefined>,
   'updateOrderStatus' : ActorMethod<[string, OrderStatus], undefined>,

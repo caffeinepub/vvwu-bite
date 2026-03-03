@@ -19,7 +19,7 @@ import {
   Users,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   OrderStatus,
   OrderType,
@@ -72,11 +72,42 @@ function QueueOrderRow({
   };
 
   const handleSaveTime = async () => {
-    await updateTime.mutateAsync({
-      orderId: order.id,
-      time: BigInt(Number(timeVal) || 0),
-    });
-    setEditingTime(false);
+    try {
+      await updateTime.mutateAsync({
+        orderId: order.id,
+        time: BigInt(Number(timeVal) || 0),
+      });
+      setEditingTime(false);
+    } catch (err) {
+      console.error("[handleSaveTime] failed:", err);
+    }
+  };
+
+  const handleMarkDelivered = async () => {
+    try {
+      await markDelivered.mutateAsync(order.id);
+    } catch (err) {
+      console.error("[markDelivered] failed:", err);
+    }
+  };
+
+  const handleMarkPaid = async () => {
+    try {
+      await markPaid.mutateAsync(order.id);
+    } catch (err) {
+      console.error("[markPaid] failed:", err);
+    }
+  };
+
+  const handleUpdateStatus = async (v: string) => {
+    try {
+      await updateStatus.mutateAsync({
+        orderId: order.id,
+        status: v as OrderStatus,
+      });
+    } catch (err) {
+      console.error("[updateStatus] failed:", err);
+    }
   };
 
   return (
@@ -179,11 +210,18 @@ function QueueOrderRow({
           {order.paymentStatus !== PaymentStatus.paid && (
             <button
               type="button"
-              onClick={() => void markPaid.mutateAsync(order.id)}
-              className="text-xs text-accent hover:underline font-heading"
+              onClick={() => void handleMarkPaid()}
+              className="text-xs text-accent hover:underline font-heading disabled:opacity-50"
               disabled={markPaid.isPending}
             >
-              Mark Paid
+              {markPaid.isPending ? (
+                <span className="flex items-center gap-1">
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                  Updating…
+                </span>
+              ) : (
+                "Mark Paid"
+              )}
             </button>
           )}
         </div>
@@ -193,12 +231,8 @@ function QueueOrderRow({
       <td className="py-3 px-4">
         <Select
           value={order.status}
-          onValueChange={(v) =>
-            void updateStatus.mutateAsync({
-              orderId: order.id,
-              status: v as OrderStatus,
-            })
-          }
+          onValueChange={(v) => void handleUpdateStatus(v)}
+          disabled={updateStatus.isPending}
         >
           <SelectTrigger className="h-7 w-32 text-xs bg-muted border-border font-heading">
             <SelectValue />
@@ -228,7 +262,7 @@ function QueueOrderRow({
       <td className="py-3 px-4">
         <Button
           size="sm"
-          onClick={() => void markDelivered.mutateAsync(order.id)}
+          onClick={() => void handleMarkDelivered()}
           disabled={markDelivered.isPending}
           className="h-7 text-xs bg-green-600 hover:bg-green-700 font-heading gap-1"
         >
@@ -244,8 +278,36 @@ function QueueOrderRow({
   );
 }
 
+// Live countdown hook that ticks down from `total` to 0, resetting when isFetching toggles
+function useCountdown(total: number, isFetching: boolean) {
+  const [count, setCount] = useState(total);
+  const prevFetchingRef = useRef(isFetching);
+
+  useEffect(() => {
+    // Reset to full when a new fetch cycle completes
+    if (prevFetchingRef.current && !isFetching) {
+      setCount(total);
+    }
+    prevFetchingRef.current = isFetching;
+  }, [isFetching, total]);
+
+  useEffect(() => {
+    if (isFetching) return; // Don't tick while fetching
+    const id = setInterval(() => {
+      setCount((prev) => {
+        if (prev <= 1) return total;
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(id);
+  }, [isFetching, total]);
+
+  return count;
+}
+
 export function AdminQueueManager() {
   const { data: orders, isLoading, refetch, isFetching } = useQueueOrders();
+  const countdown = useCountdown(10, isFetching);
 
   const handleExport = () => {
     if (!orders?.length) return;
@@ -289,9 +351,14 @@ export function AdminQueueManager() {
             <h1 className="font-display font-bold text-3xl gradient-text">
               Queue Manager
             </h1>
-            <p className="text-muted-foreground text-xs mt-1">
-              Auto-refreshes every 10 seconds
-            </p>
+            <div className="flex items-center gap-2 mt-1">
+              <div
+                className={`w-2 h-2 rounded-full ${isFetching ? "bg-yellow-400 animate-pulse" : "bg-green-400"}`}
+              />
+              <p className="text-muted-foreground text-xs">
+                {isFetching ? "Refreshing…" : `Auto-refreshes in ${countdown}s`}
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <Button

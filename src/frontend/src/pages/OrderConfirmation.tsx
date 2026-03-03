@@ -122,7 +122,13 @@ export function OrderConfirmation() {
             Order Placed!
           </h1>
           <p className="text-muted-foreground text-sm">
-            Your food is being prepared. Please show your token at the counter.
+            {order.status === OrderStatus.preparing
+              ? "👨‍🍳 Preparing your Delicious order 🍽️"
+              : order.status === OrderStatus.ready
+                ? "✅ Your order is almost ready! Please wait a moment. 🙏"
+                : order.status === OrderStatus.delivered
+                  ? "🎉 Your Yummy order is Ready! 🥘 Please show your token at the counter to receive it. 🪙"
+                  : "✅ Order Confirmed! 🍽️ Cooking will be started soon..."}
           </p>
         </motion.div>
 

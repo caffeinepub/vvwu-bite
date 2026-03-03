@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -6,9 +7,9 @@ import {
   ChevronRight,
   Clock,
   DollarSign,
+  RefreshCw,
   ShoppingBag,
   TrendingUp,
-  Users,
   UtensilsCrossed,
 } from "lucide-react";
 import { motion } from "motion/react";
@@ -29,10 +30,32 @@ export function AdminDashboard() {
     new Date(new Date().setHours(0, 0, 0, 0)).getTime() * 1_000_000,
   );
 
-  const { data: queueOrders, isLoading: queueLoading } = useQueueOrders();
-  const { data: allOrders, isLoading: ordersLoading } = useAllOrders();
-  const { data: sales, isLoading: salesLoading } = useSalesSummary(todayTs);
+  const {
+    data: queueOrders,
+    isLoading: queueLoading,
+    refetch: refetchQueue,
+    isFetching: queueFetching,
+  } = useQueueOrders();
+  const {
+    data: allOrders,
+    isLoading: ordersLoading,
+    refetch: refetchOrders,
+    isFetching: ordersFetching,
+  } = useAllOrders();
+  const {
+    data: sales,
+    isLoading: salesLoading,
+    refetch: refetchSales,
+  } = useSalesSummary(todayTs);
   useAllMenuItems(); // preload menu items
+
+  const isRefreshing = queueFetching || ordersFetching;
+
+  const handleRefreshAll = () => {
+    void refetchQueue();
+    void refetchOrders();
+    void refetchSales();
+  };
 
   const todayOrders =
     allOrders?.filter((o) => {
@@ -48,9 +71,15 @@ export function AdminDashboard() {
   const completedToday = todayOrders.filter(
     (o) => o.status === OrderStatus.delivered,
   ).length;
+
   const revenueToday = todayOrders
     .filter((o) => o.status === OrderStatus.delivered)
     .reduce((sum, o) => sum + o.totalAmount, 0);
+
+  // Prefer the sales summary from backend if available, fall back to computed
+  const displayRevenue = salesLoading
+    ? "..."
+    : `₹${(sales?.totalRevenue && sales.totalRevenue > 0 ? sales.totalRevenue : revenueToday).toFixed(0)}`;
 
   const statsCards = [
     {
@@ -60,16 +89,16 @@ export function AdminDashboard() {
       color: "text-primary",
       bgColor: "bg-primary/10",
       borderColor: "border-primary/20",
+      route: "/admin/orders",
     },
     {
       title: "Revenue Today",
-      value: salesLoading
-        ? "..."
-        : `₹${sales?.totalRevenue?.toFixed(0) ?? revenueToday.toFixed(0)}`,
+      value: displayRevenue,
       icon: DollarSign,
       color: "text-accent",
       bgColor: "bg-accent/10",
       borderColor: "border-accent/20",
+      route: "/admin/history",
     },
     {
       title: "In Queue",
@@ -78,6 +107,7 @@ export function AdminDashboard() {
       color: "text-orange-400",
       bgColor: "bg-orange-500/10",
       borderColor: "border-orange-500/20",
+      route: "/admin/queue",
     },
     {
       title: "Completed Today",
@@ -86,6 +116,7 @@ export function AdminDashboard() {
       color: "text-green-400",
       bgColor: "bg-green-500/10",
       borderColor: "border-green-500/20",
+      route: "/admin/orders",
     },
   ];
 
@@ -131,34 +162,52 @@ export function AdminDashboard() {
         <motion.div
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="flex items-start justify-between mb-8 gap-4"
         >
-          <p className="text-xs font-heading uppercase tracking-widest text-accent mb-1">
-            Admin Panel
-          </p>
-          <h1 className="font-display font-bold text-3xl gradient-text">
-            Dashboard
-          </h1>
-          <p className="text-muted-foreground text-sm mt-1">
-            {new Date().toLocaleDateString("en-IN", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-              year: "numeric",
-            })}{" "}
-            · Today: <span className="text-accent">{today}</span>
-          </p>
+          <div>
+            <p className="text-xs font-heading uppercase tracking-widest text-accent mb-1">
+              Admin Panel
+            </p>
+            <h1 className="font-display font-bold text-3xl gradient-text">
+              Dashboard
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              {new Date().toLocaleDateString("en-IN", {
+                weekday: "long",
+                day: "numeric",
+                month: "long",
+                year: "numeric",
+              })}{" "}
+              · Today: <span className="text-accent">{today}</span>
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefreshAll}
+            disabled={isRefreshing}
+            className="border-border font-heading text-xs gap-1.5 mt-1 flex-shrink-0"
+          >
+            <RefreshCw
+              className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`}
+            />
+            Refresh
+          </Button>
         </motion.div>
 
         {/* Stats */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {statsCards.map((card, i) => (
-            <motion.div
+            <motion.button
               key={card.title}
+              type="button"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.08 }}
-              className={`bg-card border ${card.borderColor} rounded-xl p-4`}
+              whileHover={{ scale: 1.03 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => void navigate({ to: card.route })}
+              className={`bg-card border ${card.borderColor} hover:border-opacity-60 rounded-xl p-4 text-left w-full cursor-pointer transition-all hover:shadow-md hover:shadow-black/20 group`}
             >
               <div className="flex items-start justify-between mb-3">
                 <div
@@ -166,6 +215,7 @@ export function AdminDashboard() {
                 >
                   <card.icon className={`h-5 w-5 ${card.color}`} />
                 </div>
+                <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
               <div className="font-display font-bold text-2xl md:text-3xl mb-1">
                 {card.value}
@@ -173,7 +223,7 @@ export function AdminDashboard() {
               <div className="text-xs text-muted-foreground font-heading">
                 {card.title}
               </div>
-            </motion.div>
+            </motion.button>
           ))}
         </div>
 

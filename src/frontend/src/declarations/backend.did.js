@@ -64,10 +64,7 @@ export const Order = IDL.Record({
   'items' : IDL.Vec(OrderItem),
   'estimatedTime' : IDL.Nat,
 });
-export const UserProfile = IDL.Record({
-  'name' : IDL.Text,
-  'email' : IDL.Text,
-});
+export const UserProfile = IDL.Record({ 'name' : IDL.Text, 'role' : IDL.Text });
 
 export const idlService = IDL.Service({
   '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
@@ -81,6 +78,7 @@ export const idlService = IDL.Service({
   'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
   'getMenuByDay' : IDL.Func([IDL.Text], [IDL.Vec(MenuItem)], ['query']),
   'getMenuItem' : IDL.Func([IDL.Text], [IDL.Opt(MenuItem)], ['query']),
+  'getMenuItemCount' : IDL.Func([], [IDL.Nat], ['query']),
   'getOrder' : IDL.Func([IDL.Text], [IDL.Opt(Order)], ['query']),
   'getOrdersByDate' : IDL.Func([Time], [IDL.Vec(Order)], ['query']),
   'getOrdersByDateRange' : IDL.Func([Time, Time], [IDL.Vec(Order)], ['query']),
@@ -99,7 +97,6 @@ export const idlService = IDL.Service({
   'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
   'markOrderAsDelivered' : IDL.Func([IDL.Text], [], []),
   'markPaymentAsPaid' : IDL.Func([IDL.Text], [], []),
-  'nextDay' : IDL.Func([], [], []),
   'placeOrder' : IDL.Func(
       [IDL.Vec(OrderItem), OrderType, PaymentMethod, IDL.Text],
       [IDL.Text],
@@ -107,6 +104,7 @@ export const idlService = IDL.Service({
     ),
   'removeMenuItem' : IDL.Func([IDL.Text], [], []),
   'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+  'seedMenuItems' : IDL.Func([IDL.Vec(MenuItem)], [], []),
   'updateEstimatedTime' : IDL.Func([IDL.Text, IDL.Nat], [], []),
   'updateMenuItem' : IDL.Func([IDL.Text, MenuItem], [], []),
   'updateOrderStatus' : IDL.Func([IDL.Text, OrderStatus], [], []),
@@ -162,7 +160,7 @@ export const idlFactory = ({ IDL }) => {
     'items' : IDL.Vec(OrderItem),
     'estimatedTime' : IDL.Nat,
   });
-  const UserProfile = IDL.Record({ 'name' : IDL.Text, 'email' : IDL.Text });
+  const UserProfile = IDL.Record({ 'name' : IDL.Text, 'role' : IDL.Text });
   
   return IDL.Service({
     '_initializeAccessControlWithSecret' : IDL.Func([IDL.Text], [], []),
@@ -176,6 +174,7 @@ export const idlFactory = ({ IDL }) => {
     'getCallerUserRole' : IDL.Func([], [UserRole], ['query']),
     'getMenuByDay' : IDL.Func([IDL.Text], [IDL.Vec(MenuItem)], ['query']),
     'getMenuItem' : IDL.Func([IDL.Text], [IDL.Opt(MenuItem)], ['query']),
+    'getMenuItemCount' : IDL.Func([], [IDL.Nat], ['query']),
     'getOrder' : IDL.Func([IDL.Text], [IDL.Opt(Order)], ['query']),
     'getOrdersByDate' : IDL.Func([Time], [IDL.Vec(Order)], ['query']),
     'getOrdersByDateRange' : IDL.Func(
@@ -198,7 +197,6 @@ export const idlFactory = ({ IDL }) => {
     'isCallerAdmin' : IDL.Func([], [IDL.Bool], ['query']),
     'markOrderAsDelivered' : IDL.Func([IDL.Text], [], []),
     'markPaymentAsPaid' : IDL.Func([IDL.Text], [], []),
-    'nextDay' : IDL.Func([], [], []),
     'placeOrder' : IDL.Func(
         [IDL.Vec(OrderItem), OrderType, PaymentMethod, IDL.Text],
         [IDL.Text],
@@ -206,6 +204,7 @@ export const idlFactory = ({ IDL }) => {
       ),
     'removeMenuItem' : IDL.Func([IDL.Text], [], []),
     'saveCallerUserProfile' : IDL.Func([UserProfile], [], []),
+    'seedMenuItems' : IDL.Func([IDL.Vec(MenuItem)], [], []),
     'updateEstimatedTime' : IDL.Func([IDL.Text, IDL.Nat], [], []),
     'updateMenuItem' : IDL.Func([IDL.Text, MenuItem], [], []),
     'updateOrderStatus' : IDL.Func([IDL.Text, OrderStatus], [], []),

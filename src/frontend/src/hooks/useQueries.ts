@@ -22,7 +22,9 @@ export function useMenuByDay(day: string) {
       return actor.getMenuByDay(day);
     },
     enabled: !!actor && !isFetching,
-    staleTime: 1000 * 60 * 2,
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
   });
 }
 
@@ -121,6 +123,8 @@ export function usePlaceOrder() {
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["menu"] });
       void qc.invalidateQueries({ queryKey: ["queue"] });
+      void qc.invalidateQueries({ queryKey: ["orders", "all"] });
+      void qc.invalidateQueries({ queryKey: ["sales"] });
     },
     onError: () => toast.error("Failed to place order"),
   });
@@ -148,6 +152,8 @@ export function useQueueOrders() {
     },
     enabled: !!actor && !isFetching,
     refetchInterval: 10_000,
+    staleTime: 0,
+    refetchOnMount: true,
   });
 }
 
@@ -157,10 +163,17 @@ export function useAllOrders() {
     queryKey: ["orders", "all"],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.getAllOrders();
+      try {
+        return await actor.getAllOrders();
+      } catch (err) {
+        console.error("[useAllOrders] failed:", err);
+        return [];
+      }
     },
     enabled: !!actor && !isFetching,
     refetchInterval: 15_000,
+    staleTime: 0,
+    refetchOnMount: true,
   });
 }
 
@@ -170,9 +183,17 @@ export function useOrdersByDate(date: bigint) {
     queryKey: ["orders", "date", date.toString()],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.getOrdersByDate(date);
+      try {
+        return await actor.getOrdersByDate(date);
+      } catch (err) {
+        console.error("[useOrdersByDate] failed:", err);
+        return [];
+      }
     },
     enabled: !!actor && !isFetching,
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchInterval: 30_000,
   });
 }
 
@@ -182,9 +203,16 @@ export function useOrdersByDateRange(startDate: bigint, endDate: bigint) {
     queryKey: ["orders", "range", startDate.toString(), endDate.toString()],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.getOrdersByDateRange(startDate, endDate);
+      try {
+        return await actor.getOrdersByDateRange(startDate, endDate);
+      } catch (err) {
+        console.error("[useOrdersByDateRange] failed:", err);
+        return [];
+      }
     },
     enabled: !!actor && !isFetching,
+    staleTime: 0,
+    refetchOnMount: true,
   });
 }
 
@@ -195,13 +223,24 @@ export function useMarkDelivered() {
     mutationFn: async (orderId: string) => {
       if (!actor) throw new Error("Not connected");
       await actor.markOrderAsDelivered(orderId);
+      return orderId;
     },
-    onSuccess: () => {
+    onSuccess: (orderId) => {
       void qc.invalidateQueries({ queryKey: ["queue"] });
+      void qc.invalidateQueries({ queryKey: ["orders", "all"] });
       void qc.invalidateQueries({ queryKey: ["orders"] });
-      toast.success("Order marked as delivered");
+      void qc.invalidateQueries({ queryKey: ["sales"] });
+      toast.success(`Order ${orderId} delivered! Queue updated.`);
     },
-    onError: () => toast.error("Failed to update order"),
+    onError: (err) => {
+      const msg =
+        err instanceof Error ? err.message : "Failed to deliver order";
+      toast.error(
+        msg.includes("not found")
+          ? "Order not found"
+          : "Failed to deliver order",
+      );
+    },
   });
 }
 
@@ -215,7 +254,9 @@ export function useMarkPaymentPaid() {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["queue"] });
+      void qc.invalidateQueries({ queryKey: ["orders", "all"] });
       void qc.invalidateQueries({ queryKey: ["orders"] });
+      void qc.invalidateQueries({ queryKey: ["sales"] });
       toast.success("Payment marked as paid");
     },
     onError: () => toast.error("Failed to update payment"),
@@ -235,9 +276,20 @@ export function useUpdateOrderStatus() {
     },
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: ["queue"] });
+      void qc.invalidateQueries({ queryKey: ["orders", "all"] });
       void qc.invalidateQueries({ queryKey: ["orders"] });
+      void qc.invalidateQueries({ queryKey: ["sales"] });
+      toast.success("Status updated ✓");
     },
-    onError: () => toast.error("Failed to update status"),
+    onError: (err) => {
+      const msg =
+        err instanceof Error ? err.message : "Failed to update status";
+      toast.error(
+        msg.includes("not found")
+          ? "Order not found"
+          : "Failed to update status",
+      );
+    },
   });
 }
 
@@ -265,9 +317,17 @@ export function useSalesSummary(date: bigint) {
     queryKey: ["sales", date.toString()],
     queryFn: async () => {
       if (!actor) return { totalOrders: BigInt(0), totalRevenue: 0 };
-      return actor.getSalesSummary(date);
+      try {
+        return await actor.getSalesSummary(date);
+      } catch (err) {
+        console.error("[useSalesSummary] failed:", err);
+        return { totalOrders: BigInt(0), totalRevenue: 0 };
+      }
     },
     enabled: !!actor && !isFetching,
+    staleTime: 0,
+    refetchOnMount: true,
+    refetchInterval: 30_000,
   });
 }
 

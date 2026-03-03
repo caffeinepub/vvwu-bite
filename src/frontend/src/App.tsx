@@ -12,6 +12,11 @@ import { Footer } from "./components/Footer";
 import { Navbar } from "./components/Navbar";
 import { CartProvider } from "./context/CartContext";
 import { ThemeProvider } from "./context/ThemeContext";
+import { useMenuSeeder } from "./hooks/useMenuSeeder";
+
+function isAdminLoggedIn() {
+  return localStorage.getItem("adminLoggedIn") === "true";
+}
 
 import { CartPage } from "./pages/CartPage";
 import { CheckoutPage } from "./pages/CheckoutPage";
@@ -26,6 +31,13 @@ import { AdminLogin } from "./pages/admin/AdminLogin";
 import { AdminMenuManager } from "./pages/admin/AdminMenuManager";
 import { AdminQueueManager } from "./pages/admin/AdminQueueManager";
 import { AdminSalesHistory } from "./pages/admin/AdminSalesHistory";
+
+// ─── Menu Seeder ─────────────────────────────────────────────────────
+
+function MenuSeeder() {
+  useMenuSeeder();
+  return null;
+}
 
 // ─── Layout Components ────────────────────────────────────────────────
 
@@ -112,34 +124,45 @@ const adminLayoutRoute = createRoute({
   component: AdminLayout,
 });
 
+const adminGuard = () => {
+  if (!isAdminLoggedIn()) {
+    throw redirect({ to: "/admin" });
+  }
+};
+
 const adminDashboardRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: "/admin/dashboard",
   component: AdminDashboard,
+  beforeLoad: adminGuard,
 });
 
 const adminMenuRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: "/admin/menu",
   component: AdminMenuManager,
+  beforeLoad: adminGuard,
 });
 
 const adminQueueRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: "/admin/queue",
   component: AdminQueueManager,
+  beforeLoad: adminGuard,
 });
 
 const adminOrdersRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: "/admin/orders",
   component: AdminCompletedOrders,
+  beforeLoad: adminGuard,
 });
 
 const adminHistoryRoute = createRoute({
   getParentRoute: () => adminLayoutRoute,
   path: "/admin/history",
   component: AdminSalesHistory,
+  beforeLoad: adminGuard,
 });
 
 // ─── Router ──────────────────────────────────────────────────────────
@@ -177,6 +200,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <CartProvider>
+        <MenuSeeder />
         <RouterProvider router={router} />
         <Toaster
           position="top-right"

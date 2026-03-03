@@ -1,35 +1,42 @@
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useNavigate } from "@tanstack/react-router";
-import { AlertCircle, ChevronRight, Loader2, Shield } from "lucide-react";
+import { AlertCircle, Eye, EyeOff, Lock, Shield, User } from "lucide-react";
 import { motion } from "motion/react";
-import { useEffect, useState } from "react";
-import { useInternetIdentity } from "../../hooks/useInternetIdentity";
-import { useIsAdmin } from "../../hooks/useQueries";
+import { useState } from "react";
+
+const ADMIN_USERNAME = "admin";
+const ADMIN_PASSWORD = "vvwu@2026";
 
 export function AdminLogin() {
   const navigate = useNavigate();
-  const {
-    login,
-    isLoggingIn,
-    isLoginError,
-    loginError,
-    identity,
-    isInitializing,
-  } = useInternetIdentity();
-  const { data: isAdmin, isLoading: checkingAdmin } = useIsAdmin();
-  const [accessDenied, setAccessDenied] = useState(false);
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    if (!checkingAdmin && isAdmin === true) {
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setIsLoading(true);
+
+    // Simulate a brief loading state for UX
+    await new Promise((resolve) => setTimeout(resolve, 400));
+
+    if (username === ADMIN_USERNAME && password === ADMIN_PASSWORD) {
+      localStorage.setItem("adminLoggedIn", "true");
       void navigate({ to: "/admin/dashboard" });
-    } else if (!checkingAdmin && identity && isAdmin === false) {
-      setAccessDenied(true);
+    } else {
+      setError("Invalid username or password");
+      setIsLoading(false);
     }
-  }, [isAdmin, checkingAdmin, identity, navigate]);
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden">
+    <div className="min-h-screen flex items-center justify-center px-4 relative overflow-hidden bg-background">
       {/* Background decorations */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-32 -right-32 w-96 h-96 rounded-full bg-primary/10 blur-3xl" />
@@ -61,68 +68,110 @@ export function AdminLogin() {
 
         {/* Card */}
         <div className="bg-card border border-border rounded-2xl p-7 shadow-card-glow">
-          <div className="space-y-5">
-            <div className="text-center space-y-2">
+          <form onSubmit={handleLogin} className="space-y-5">
+            <div className="text-center space-y-1 mb-2">
               <h2 className="font-heading font-semibold text-lg">
-                Secure Sign In
+                Secure Admin Login
               </h2>
               <p className="text-muted-foreground text-sm">
-                Use Internet Identity to access the admin dashboard. Only
-                authorized administrators can log in.
+                Enter your admin credentials to access the dashboard.
               </p>
             </div>
 
-            {/* Access Denied */}
-            {accessDenied && (
-              <Alert className="border-destructive/40 bg-destructive/10">
-                <AlertCircle className="h-4 w-4 text-destructive" />
-                <AlertDescription className="text-destructive text-sm font-heading">
-                  Access Denied. Your account does not have admin privileges.
-                  Please contact the canteen manager.
-                </AlertDescription>
-              </Alert>
+            {/* Error Alert */}
+            {error && (
+              <motion.div
+                initial={{ opacity: 0, y: -8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3 }}
+              >
+                <Alert className="border-destructive/40 bg-destructive/10">
+                  <AlertCircle className="h-4 w-4 text-destructive" />
+                  <AlertDescription className="text-destructive text-sm font-heading">
+                    {error}
+                  </AlertDescription>
+                </Alert>
+              </motion.div>
             )}
 
-            {/* Login Error */}
-            {isLoginError && loginError && (
-              <Alert className="border-destructive/40 bg-destructive/10">
-                <AlertCircle className="h-4 w-4 text-destructive" />
-                <AlertDescription className="text-destructive text-sm font-heading">
-                  {loginError.message}
-                </AlertDescription>
-              </Alert>
-            )}
+            {/* Username Field */}
+            <div className="space-y-2">
+              <Label
+                htmlFor="username"
+                className="font-heading text-sm font-medium"
+              >
+                Username
+              </Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="username"
+                  type="text"
+                  placeholder="Enter username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  className="pl-10 bg-muted border-border font-heading h-12 focus:border-accent focus:ring-accent"
+                  autoComplete="username"
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Password Field */}
+            <div className="space-y-2">
+              <Label
+                htmlFor="password"
+                className="font-heading text-sm font-medium"
+              >
+                Password
+              </Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-10 pr-10 bg-muted border-border font-heading h-12 focus:border-accent focus:ring-accent"
+                  autoComplete="current-password"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  tabIndex={-1}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? (
+                    <EyeOff className="h-4 w-4" />
+                  ) : (
+                    <Eye className="h-4 w-4" />
+                  )}
+                </button>
+              </div>
+            </div>
 
             {/* Login Button */}
             <Button
-              className="w-full bg-primary hover:bg-primary/90 h-12 font-heading font-bold gap-2 glow-red text-base"
-              onClick={login}
-              disabled={isLoggingIn || isInitializing || checkingAdmin}
+              type="submit"
+              className="w-full bg-primary hover:bg-primary/90 h-12 font-heading font-bold gap-2 glow-red text-base mt-2"
+              disabled={isLoading}
             >
-              {isLoggingIn || isInitializing || checkingAdmin ? (
+              {isLoading ? (
                 <>
-                  <Loader2 className="h-5 w-5 animate-spin" />
-                  {checkingAdmin
-                    ? "Verifying access..."
-                    : isInitializing
-                      ? "Initializing..."
-                      : "Connecting..."}
+                  <div className="h-4 w-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Verifying...
                 </>
               ) : (
                 <>
                   <Shield className="h-5 w-5" />
-                  Sign in with Internet Identity
-                  <ChevronRight className="h-5 w-5 ml-auto" />
+                  Login to Admin Panel
                 </>
               )}
             </Button>
-
-            <div className="text-center pt-1">
-              <p className="text-xs text-muted-foreground">
-                Protected by Internet Computer&apos;s decentralized identity
-              </p>
-            </div>
-          </div>
+          </form>
         </div>
 
         {/* Back to site */}

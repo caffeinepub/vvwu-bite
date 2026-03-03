@@ -39,11 +39,19 @@ function dateToNano(d: Date): bigint {
   return BigInt(startOfDay.getTime() * 1_000_000);
 }
 
-function MonthChart({ orders }: { orders: Order[] }) {
-  const now = new Date();
+function dateEndToNano(d: Date): bigint {
+  const endOfDay = new Date(d);
+  endOfDay.setHours(23, 59, 59, 999);
+  return BigInt(endOfDay.getTime() * 1_000_000);
+}
+
+function MonthChart({
+  orders,
+  selectedDate,
+}: { orders: Order[]; selectedDate: Date }) {
   const daysInMonth = new Date(
-    now.getFullYear(),
-    now.getMonth() + 1,
+    selectedDate.getFullYear(),
+    selectedDate.getMonth() + 1,
     0,
   ).getDate();
 
@@ -53,8 +61,8 @@ function MonthChart({ orders }: { orders: Order[] }) {
       const d = new Date(Number(o.timestamp) / 1_000_000);
       return (
         d.getDate() === day &&
-        d.getMonth() === now.getMonth() &&
-        d.getFullYear() === now.getFullYear()
+        d.getMonth() === selectedDate.getMonth() &&
+        d.getFullYear() === selectedDate.getFullYear()
       );
     }).length;
   });
@@ -64,7 +72,7 @@ function MonthChart({ orders }: { orders: Order[] }) {
   return (
     <div className="space-y-2">
       <p className="text-xs font-heading text-muted-foreground uppercase tracking-wider">
-        Orders this month
+        Orders this month — {format(selectedDate, "MMMM yyyy")}
       </p>
       <div className="flex items-end gap-0.5 h-20">
         {dailyCounts.map((count, i) => (
@@ -98,18 +106,38 @@ export function AdminSalesHistory() {
   const { data: menuItems } = useAllMenuItems();
 
   const dateNano = dateToNano(selectedDate);
+  const dateEndNano = dateEndToNano(selectedDate);
 
-  const { data: dayOrders, isLoading } = useOrdersByDate(dateNano);
+  const {
+    data: dayOrders,
+    isLoading,
+    refetch: refetchDay,
+    isFetching: dayFetching,
+  } = useOrdersByDate(dateNano);
   useSalesSummary(dateNano); // kept for potential display
 
-  // Get month range for chart
+  // Get month range for chart — use last nanosecond of last day of month
   const monthStart = dateToNano(
     new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1),
   );
-  const monthEnd = dateToNano(
-    new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 1),
+  const monthEnd = BigInt(
+    new Date(
+      selectedDate.getFullYear(),
+      selectedDate.getMonth() + 1,
+      0,
+      23,
+      59,
+      59,
+      999,
+    ).getTime() * 1_000_000,
   );
-  const { data: monthOrders } = useOrdersByDateRange(monthStart, monthEnd);
+  const {
+    data: monthOrders,
+    refetch: refetchMonth,
+    isFetching: monthFetching,
+  } = useOrdersByDateRange(monthStart, monthEnd);
+
+  const isRefreshing = dayFetching || monthFetching;
 
   const getItemNames = (order: Order) => {
     if (!menuItems) return order.items.map((i) => i.itemId).join(", ");
@@ -156,11 +184,25 @@ export function AdminSalesHistory() {
     );
   };
 
-  const revenue = dayOrders?.reduce((sum, o) => sum + o.totalAmount, 0) ?? 0;
+  // Revenue = only delivered orders
+  const revenue =
+    dayOrders
+      ?.filter((o) => o.status === OrderStatus.delivered)
+      .reduce((sum, o) => sum + o.totalAmount, 0) ?? 0;
+
   const completedOrders =
     dayOrders?.filter((o) => o.status === OrderStatus.delivered).length ?? 0;
 
+  // Month revenue = only delivered
+  const monthRevenue =
+    monthOrders
+      ?.filter((o) => o.status === OrderStatus.delivered)
+      .reduce((s, o) => s + o.totalAmount, 0) ?? 0;
+
   const isToday = selectedDate.toDateString() === new Date().toDateString();
+
+  // Suppress unused variable warning — dateEndNano used for potential direct query
+  void dateEndNano;
 
   return (
     <div className="min-h-screen py-8 px-4">
@@ -180,6 +222,23 @@ export function AdminSalesHistory() {
             </h1>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            {/* Refresh */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                void refetchDay();
+                void refetchMonth();
+              }}
+              disabled={isRefreshing}
+              className="border-border font-heading text-xs gap-1.5"
+            >
+              <RefreshCw
+                className={`h-3.5 w-3.5 ${isRefreshing ? "animate-spin" : ""}`}
+              />
+              Refresh
+            </Button>
+
             {/* Date Picker */}
             <Popover open={calOpen} onOpenChange={setCalOpen}>
               <PopoverTrigger asChild>
@@ -272,9 +331,7 @@ export function AdminSalesHistory() {
             },
             {
               label: "Month Revenue",
-              value: monthOrders
-                ? `₹${monthOrders.reduce((s, o) => s + o.totalAmount, 0).toFixed(0)}`
-                : "...",
+              value: monthOrders ? `₹${monthRevenue.toFixed(0)}` : "...",
               icon: Calendar,
               color: "text-blue-400",
               bg: "bg-blue-500/10",
@@ -307,16 +364,21 @@ export function AdminSalesHistory() {
         {/* Month Chart */}
         {monthOrders && (
           <div className="bg-card border border-border rounded-xl p-5 mb-6">
-            <MonthChart orders={monthOrders} />
+            <MonthChart orders={monthOrders} selectedDate={selectedDate} />
           </div>
         )}
 
         {/* Orders Table */}
         <div className="bg-card border border-border rounded-xl overflow-hidden">
-          <div className="p-4 border-b border-border">
+          <div className="p-4 border-b border-border flex items-center justify-between">
             <h2 className="font-heading font-semibold text-sm">
               All Orders — {format(selectedDate, "dd MMMM yyyy")}
             </h2>
+            {dayOrders && dayOrders.length > 0 && (
+              <span className="text-xs text-muted-foreground font-heading">
+                {dayOrders.length} order{dayOrders.length !== 1 ? "s" : ""}
+              </span>
+            )}
           </div>
 
           {isLoading ? (
@@ -441,7 +503,7 @@ export function AdminSalesHistory() {
                       colSpan={6}
                       className="py-3 px-4 font-heading font-semibold text-sm text-right"
                     >
-                      Total Revenue:
+                      Delivered Revenue:
                     </td>
                     <td className="py-3 px-4">
                       <span className="font-heading font-bold gold-gradient-text text-base">
